@@ -117,6 +117,7 @@ let logs = []; // 保留本地日志数组，用于UI显示
 let currentVersion = '';
 let latestVersion = '';
 let currentToken = 'globals.currentToken';
+let authEnabled = globals.authEnabled;
 let currentAdminToken = ''; // admin token，用于系统管理
 let originalToken = '';
 
@@ -152,6 +153,8 @@ function saveBaseUrl() {
 
 // 构建带token的API请求路径
 function buildApiUrl(path, isSystemPath = false) {
+    // 无鉴权服务由反代入口控制访问，沿用当前页面的完整挂载路径。
+    if (!authEnabled) return (customBaseUrl || window.location.pathname).replace(/\\/$/, '') + path;
     let res;
     // 如果是系统管理路径且有admin token,则使用admin token
     if (isSystemPath && currentAdminToken && currentAdminToken.trim() !== '' && currentAdminToken.trim() !== '*'.repeat(currentAdminToken.length)) {
@@ -256,6 +259,10 @@ function updateApiEndpoint() {
     })
     .then(config => {
       let _reverseProxy = customBaseUrl; // 使用全局配置
+      if (!authEnabled) {
+        document.getElementById('api-endpoint').textContent = new URL(buildApiUrl('/api/v2'), window.location.origin).href;
+        return;
+      }
 
       // 获取当前页面的协议、主机和端口
       const protocol = window.location.protocol;
@@ -425,7 +432,7 @@ function switchSection(section, event = null) {
         const urlToken = pathParts.length > 0 ? pathParts[0] : '';
         
         // 检查URL中是否有token
-        if (!urlToken && originalToken !== "87654321") {
+        if (authEnabled && !urlToken && originalToken !== "87654321") {
             // 提示用户需要在URL中配置TOKEN
             setTimeout(() => {
                 // 获取当前页面的协议、主机和端口
@@ -571,7 +578,7 @@ async function init() {
         setDefaultPushUrl(config);
 
         // 检查并处理管理员令牌
-        checkAndHandleAdminToken();
+        if (authEnabled) checkAndHandleAdminToken();
         
         loadEnvVariables(); // 从API加载真实环境变量数据
         renderEnvList();

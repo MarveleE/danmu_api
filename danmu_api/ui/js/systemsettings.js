@@ -594,6 +594,7 @@ function confirmDeploymentByLogs() {
 
 // 检查URL中的token是否与currentAdminToken匹配
 function checkAdminToken() {
+    if (!authEnabled) return true;
     let _reverseProxy = customBaseUrl; // 使用全局变量 customBaseUrl
 
     // 获取URL路径并提取token

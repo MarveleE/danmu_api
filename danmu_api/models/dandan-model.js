@@ -137,16 +137,18 @@ Episode.prototype.toJson = function () {
 // =====================
 export class Episodes {
   constructor({ animeId = 111, animeTitle = "", type = "", typeDescription = "",
-                episodes = [] } = {}) {
+                episodes = [], aliases = [] } = {}) {
     // ---- 类型检查 ----
     validateType(animeId, "number");
     validateType(animeTitle, "string");
     validateType(type, "string");
     validateType(typeDescription, "string");
     validateType(episodes, "array");
+    validateType(aliases, "array");
 
     // 直接解构并赋值给 this
     Object.assign(this, { animeId, animeTitle, type, typeDescription,
+      aliases: aliases.filter(alias => typeof alias === "string"),
       episodes: episodes.map(ep => new Episode(ep)) });
   }
 

@@ -76,12 +76,13 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
   const firstPart = parts[0] || "";
   const isDefaultToken = globals.token === "87654321";
-  const isValidToken = firstPart === globals.token || firstPart === globals.adminToken;
-  const explicitToken = firstPart === globals.token || (globals.adminToken && firstPart === globals.adminToken)
+  const isValidToken = !globals.authEnabled || firstPart === globals.token || firstPart === globals.adminToken;
+  const explicitToken = globals.authEnabled && (firstPart === globals.token || (globals.adminToken && firstPart === globals.adminToken))
     ? firstPart
     : "";
 
   globals.currentToken = 
+    !globals.authEnabled ? '' :
     isValidToken ? firstPart :
     isDefaultToken && (firstPart === "87654321" || knownApiPaths.includes(firstPart)) ? 
       (firstPart === "87654321" ? firstPart : "87654321") :
@@ -93,7 +94,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   const isFavoriteRequest = /(?:^|\/)favorite(?:\/|$)/.test(tokenlessPath);
   const isFavoriteListRequest = method === "GET"
     && /^\/(?:api\/v2\/|api\/|v2\/)?favorite\/list$/.test(tokenlessPath);
-  if (method !== "OPTIONS" && isFavoriteRequest && !isFavoriteListRequest) {
+  if (globals.authEnabled && method !== "OPTIONS" && isFavoriteRequest && !isFavoriteListRequest) {
     if (!explicitToken && !isDefaultToken) {
       return jsonResponse(
         { errorCode: 401, success: false, errorMessage: "Favorite API requires an explicit token" },
@@ -221,7 +222,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   }
 
   // 如果 token 是默认值 87654321
-  if (globals.token === "87654321") {
+  if (globals.authEnabled && globals.token === "87654321") {
     if (parts.length > 0) {
       // 如果第一段是正确的默认 token
       if (parts[0] === "87654321" || parts[0] === globals.adminToken) {
@@ -242,7 +243,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }
       // 如果第一段是已知的 API 路径（如 "api"），允许直接访问
     }
-  } else {
+  } else if (globals.authEnabled) {
     // token 不是默认值，必须严格校验
     if (parts.length < 1 || (parts[0] !== globals.token && parts[0] !== globals.adminToken)) {
       // 对于 /api/config 路径，如果使用默认 token，我们允许无 token 访问，但返回有限信息
@@ -279,7 +280,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   const isLocalDanmuList = (path === '/api/local-danmu/list' || path === '/api/v2/local-danmu/list') && method === 'GET';
   const localResourceMatch = path.match(/^\/api(?:\/v2)?\/local-danmu\/([^/]+)$/);
   if (isLocalDanmuUpload || isLocalDanmuList || (localResourceMatch && (method === 'GET' || method === 'DELETE' || method === 'PATCH'))) {
-    const isAdmin = !!globals.adminToken && globals.currentToken === globals.adminToken;
+    const isAdmin = !globals.authEnabled || (!!globals.adminToken && globals.currentToken === globals.adminToken);
     const isUser = !!globals.token && globals.currentToken === globals.token;
     if (!isAdmin && !isUser) return jsonResponse({ errorCode: 401, success: false, errorMessage: 'Unauthorized' }, 401);
     if ((isLocalDanmuUpload || method === 'DELETE' || method === 'PATCH') && !isAdmin && !globals.localDanmuNotRequireAdmin) {

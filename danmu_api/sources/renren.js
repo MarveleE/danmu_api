@@ -636,35 +636,35 @@ export default class RenrenSource extends BaseSource {
   /**
    * 云环境搜索（vercel/netlify/cloudflare 等 serverless 平台）：
    * 分两组并行执行，每组 3 秒，避免串行降级在云函数内的极限耗时。
-   * 第一组 WIN+TV 并行（TV 优先），第二组 MAC+WEB 并行（MAC 优先）。
+   * 第一组 WIN+TV 并行（WIN 优先，保留外语别名），第二组 MAC+WEB 并行（MAC 优先）。
    * 第一组任一成功即终止。
    */
   async _searchCloud(keyword) {
     const conn = {}; // 各 tier 连通性：ok=有数据, no_data=连通无数据, timeout=超时, unknown=被主级中止
 
-    // Phase 1: WIN 与 TV 并行。TV 优先，TV 成功时中止 WIN。
+    // WIN 保留外语别名；TV 的同一搜索结果可能没有别名，导致后续匹配全部被过滤。
     const cancel1 = new AbortController();
-    const tvP = this.searchAppContent(keyword, 30, cancel1.signal).then(v => {
-      if (v !== null && Array.isArray(v)) cancel1.abort();
+    const winP = this.performWinSearch(keyword, 30, cancel1.signal).then(v => {
+      if (Array.isArray(v) && v.length > 0) cancel1.abort();
       return v;
     });
-    const winP = this.performWinSearch(keyword, 30, cancel1.signal);
+    const tvP = this.searchAppContent(keyword, 30, cancel1.signal);
     let tvV, winV;
-    try { tvV = await tvP; } catch (_) {}
-    if (tvV !== null && Array.isArray(tvV)) {
-      conn.TV = 'ok'; conn.WIN = 'unknown';
+    try { winV = await winP; } catch (_) {}
+    if (Array.isArray(winV) && winV.length > 0) {
+      conn.WIN = 'ok'; conn.TV = 'unknown';
       this._searchConnectivity = conn;
       log("info", `[renren] 搜索连通性记录: ${JSON.stringify(conn)}`, true);
-      API_HEALTH.search = 'TV';
-      return tvV;
-    }
-    conn.TV = tvV !== null ? 'no_data' : 'timeout';
-    try { winV = await winP; } catch (_) {}
-    conn.WIN = winV !== null ? 'ok' : 'timeout';
-    if (winV !== null && Array.isArray(winV)) {
-      this._searchConnectivity = conn;
       API_HEALTH.search = 'WIN';
       return winV;
+    }
+    conn.WIN = winV != null ? 'no_data' : 'timeout';
+    try { tvV = await tvP; } catch (_) {}
+    conn.TV = Array.isArray(tvV) && tvV.length > 0 ? 'ok' : tvV != null ? 'no_data' : 'timeout';
+    if (Array.isArray(tvV) && tvV.length > 0) {
+      this._searchConnectivity = conn;
+      API_HEALTH.search = 'TV';
+      return tvV;
     }
 
     log("info", "[renren] 第一组并行搜索均未返回结果，继续第二组");

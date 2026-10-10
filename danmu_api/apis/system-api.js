@@ -16,10 +16,11 @@ function resolveUiTheme(theme) {
 }
 
 export function handleUI() {
-  const localDanmuCanUpload = globals.localDanmuNotRequireAdmin
+  const localDanmuCanUpload = !globals.authEnabled || globals.localDanmuNotRequireAdmin
     || (!!globals.adminToken && globals.currentToken === globals.adminToken);
   const html = HTML_TEMPLATE
     .replace("globals.currentToken", () => globals.currentToken)
+    .replace("globals.authEnabled", String(globals.authEnabled))
     .replace("globals.uiTheme", resolveUiTheme(globals.uiTheme))
     .replace("globals.localDanmuCanUpload", String(localDanmuCanUpload))
     .replace("globals.localDanmuRedisValid", String(globals.redisValid === true))
@@ -77,7 +78,7 @@ export function handleConfig(hasPermission = false) {
   
   // 准备原始环境变量，无权限时也需要脱敏
   let originalEnvVars = { ...globals.originalEnvVars };
-  if (!hasPermission || globals.currentToken !== globals.adminToken) {
+  if (!hasPermission || (globals.authEnabled && globals.currentToken !== globals.adminToken)) {
     Object.keys(originalEnvVars).forEach(key => {
       if (globals.currentToken !== globals.token || key !== "TOKEN") {
         if (key in previewEnvVars && /^\*+$/.test(previewEnvVars[key])) {
@@ -94,6 +95,7 @@ export function handleConfig(hasPermission = false) {
     categorizedEnvVars: categorizedVars,
     envVarConfig: envVarConfig,
     originalEnvVars: originalEnvVars, // 系统设置使用原始环境变量（已脱敏）
+    authEnabled: globals.authEnabled,
     hasAdminToken: hasAdminToken, // 添加admin token配置状态
     repository: "https://github.com/huangxd-/danmu_api.git",
     description: "一个人人都能部署的基于 js 的弹幕 API 服务器，支持爱优腾芒哔咪人韩巴狐乐西埋帆红弹幕直接获取，兼容弹弹play的搜索、详情查询和弹幕获取接口规范，并提供日志记录，支持vercel/netlify/edgeone/cloudflare/docker/hf等部署方式，不用提前下载弹幕，没有nas或小鸡也能一键部署。",
@@ -152,7 +154,7 @@ export function handleLogs() {
     
   // 检查当前 token 是否为 admin_token
   let processedLogText = logText;
-  if (globals.currentToken !== globals.adminToken) {
+  if (globals.authEnabled && globals.currentToken !== globals.adminToken) {
     // 隐藏 client ip 地址，将 "client ip: 127.0.0.1" 中的 IP 地址部分替换为相同长度的 *，但保留 .
     processedLogText = logText.replace(/(client\s+ip:\s*)([^\n\r]*)/gi, (match, prefix, ipPart) => {
       // 将 IP 地址中的每个字符（除了 . 和空格）替换为 *
@@ -321,7 +323,7 @@ export function handleReqRecords() {
   const todayReqNum = globals.todayReqNum || 0;
   
   // 非 admin token 时，对请求记录脱敏：IP / 接口查询值 / 请求体值
-  if (globals.currentToken !== globals.adminToken) {
+  if (globals.authEnabled && globals.currentToken !== globals.adminToken) {
     records = records.map(record => {
       const masked = { ...record };
       if (masked.clientIp) {

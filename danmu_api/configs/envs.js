@@ -694,6 +694,7 @@ export class Envs {
     // 环境变量分类和描述映射
     const envVarConfig = {
       // API配置
+      'AUTH_ENABLED': { category: 'api', type: 'boolean', description: '启用令牌鉴权；仅限无公网入口、由上游网关鉴权的部署关闭' },
       'TOKEN': { category: 'api', type: 'text', description: 'API访问令牌' },
       'ADMIN_TOKEN': { category: 'api', type: 'text', description: '系统管理访问令牌' },
       'FAVORITE_REQUIRE_ADMIN': { category: 'api', type: 'boolean', description: '收藏写入和管理接口是否必须使用 ADMIN_TOKEN，默认关闭；收藏列表始终可公开读取' },
@@ -776,6 +777,7 @@ export class Envs {
     return {
       vodAllowedPlatforms: this.VOD_ALLOWED_PLATFORMS,
       allowedPlatforms: this.ALLOWED_PLATFORMS,
+      authEnabled: this.get('AUTH_ENABLED', true, 'boolean'), // 仅在可信反向代理或私有 Service Binding 后关闭
       token: this.get('TOKEN', '87654321', 'string', true), // token，默认为87654321
       adminToken: this.get('ADMIN_TOKEN', '', 'string', true), // admin token，用于系统管理访问控制
       favoriteRequireAdmin: this.get('FAVORITE_REQUIRE_ADMIN', false, 'boolean'), // 收藏写入和管理接口是否必须使用 admin token；列表始终公开

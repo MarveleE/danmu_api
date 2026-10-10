@@ -1772,7 +1772,7 @@ export function buildSearchAnimeUrl(baseUrl, keyword, season, episode) {
   searchUrl.search = '';
   searchUrl.searchParams.set('keyword', keyword || '');
   if (season !== undefined) {
-    searchUrl.searchParams.set('season', season || '');
+    searchUrl.searchParams.set('season', season ?? '');
   }
   if (episode !== undefined) {
     searchUrl.searchParams.set('episode', episode || '');
@@ -2097,6 +2097,10 @@ export async function matchAnime(url, req, clientIp) {
 export async function searchEpisodes(url) {
   let anime = url.searchParams.get("anime");
   const episode = url.searchParams.get("episode") || "";
+  const season = url.searchParams.get("season");
+  if (season !== null && (!/^\d+$/.test(season) || !Number.isSafeInteger(Number(season)))) {
+    return jsonResponse({ success: false, errorCode: 400, errorMessage: "Invalid season parameter" }, 400);
+  }
 
   // 如果启用了搜索关键字繁转简，则进行转换
   if (globals.animeTitleSimplified) {
@@ -2116,7 +2120,7 @@ export async function searchEpisodes(url) {
   }
 
   // 先搜索动漫
-  let searchUrl = buildSearchAnimeUrl(url, anime);
+  let searchUrl = buildSearchAnimeUrl(url, anime, season === null ? undefined : Number(season), episode || undefined);
   const requestAnimeDetailsMap = new Map();
 
   const searchRes = await searchAnime(searchUrl, null, null, requestAnimeDetailsMap);
@@ -2180,6 +2184,7 @@ export async function searchEpisodes(url) {
         resultAnimes.push(Episodes.fromJson({
           animeId: animeItem.animeId,
           animeTitle: animeItem.animeTitle,
+          aliases: animeItem.aliases || [],
           type: animeItem.type,
           typeDescription: animeItem.typeDescription,
           episodes: filteredEpisodes.map(ep => ({
